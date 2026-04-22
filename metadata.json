@@ -1,0 +1,5 @@
+{
+  "name": "日程調整アプリ",
+  "description": "Googleカレンダーと連携して日程調整ができるアプリ",
+  "requestFramePermissions": []
+}

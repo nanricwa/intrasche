@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { parseSlot } from '../lib/slotParser';
 import { buildEventTimes } from '../lib/googleTime';
 import {
@@ -8,6 +8,7 @@ import {
   type CalendarListEntry,
 } from '../lib/googleCalendar';
 import { loadWriteCalendarId, saveWriteCalendarId } from '../lib/useCalendarList';
+import { onAuthRefreshed } from '../lib/googleAuth';
 
 interface Props {
   slot: string;
@@ -35,16 +36,13 @@ export default function ConfirmSlotButton({ slot, eventTitle, description, onRea
   const [calendars, setCalendars] = useState<CalendarListEntry[] | null>(null);
   const [targetId, setTargetId] = useState<string>(() => loadWriteCalendarId());
 
-  useEffect(() => {
-    // 確認ダイアログを開く直前のタイミングでロードしたいが、UX 優先で初回マウント時に取得
-    // エラーは表示せず、失敗時は primary のみにフォールバック
+  const fetchCalendars = useCallback(() => {
     let cancelled = false;
     listCalendars()
       .then(cals => {
         if (cancelled) return;
         const writable = cals.filter(isWritable);
         setCalendars(writable);
-        // 現在選択中の target が一覧にない場合 primary に戻す
         if (!writable.find(c => c.id === targetId)) {
           setTargetId('primary');
           saveWriteCalendarId('primary');
@@ -57,7 +55,23 @@ export default function ConfirmSlotButton({ slot, eventTitle, description, onRea
     return () => {
       cancelled = true;
     };
+  // targetId を依存に入れるとループするので無視
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // 初回ロード (UX 優先でマウント時に取得、失敗時は primary のみにフォールバック)
+    const cancel = fetchCalendars();
+    return cancel;
+  }, [fetchCalendars]);
+
+  // 再ログインに成功したら auth 状態を抜けつつカレンダー一覧を再取得
+  useEffect(() => {
+    return onAuthRefreshed(() => {
+      setState(prev => (prev.kind === 'auth' || prev.kind === 'error') ? { kind: 'idle' } : prev);
+      fetchCalendars();
+    });
+  }, [fetchCalendars]);
 
   if (!parsed) return null;
 

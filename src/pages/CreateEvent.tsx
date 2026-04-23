@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addM
 import { ja } from 'date-fns/locale';
 import { useGoogleLogin } from '@react-oauth/google';
 import GoogleDayAgenda from '../components/GoogleDayAgenda';
+import { saveGoogleToken } from '../lib/googleAuth';
 
 const googleClientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '';
 const isGoogleEnabled = !!googleClientId;
@@ -66,7 +67,7 @@ export default function CreateEvent() {
             localStorage.setItem('scheduler_user_id', userInfo.sub);
             localStorage.setItem('scheduler_user_name', userInfo.name);
             localStorage.setItem('scheduler_user_email', userInfo.email);
-            localStorage.setItem('scheduler_google_token', tokenResponse.access_token);
+            saveGoogleToken(tokenResponse.access_token);
             setUserId(userInfo.sub);
             setHostName(userInfo.name);
             setLoggedIn(true);

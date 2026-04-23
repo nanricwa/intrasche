@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isToday, isBefore, startOfToday } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useGoogleLogin } from '@react-oauth/google';
+import GoogleDayAgenda from '../components/GoogleDayAgenda';
 
 const googleClientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '';
 const isGoogleEnabled = !!googleClientId;
@@ -31,6 +32,7 @@ export default function CreateEvent() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [lastClickedDate, setLastClickedDate] = useState<Date | null>(null);
 
   useEffect(() => {
     const savedName = localStorage.getItem('scheduler_user_name');
@@ -54,7 +56,7 @@ export default function CreateEvent() {
   // Googleログイン（Client ID設定時のみ有効）
   const googleLogin = isGoogleEnabled
     ? useGoogleLogin({
-        scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+        scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
         onSuccess: async (tokenResponse) => {
           try {
             const userInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -88,6 +90,7 @@ export default function CreateEvent() {
   };
 
   const handleCalendarClick = (date: Date) => {
+    setLastClickedDate(date);
     const dateStr = format(date, 'M/d(E)', { locale: ja });
     let line = dateStr;
     if (startTime.trim()) {
@@ -316,6 +319,12 @@ export default function CreateEvent() {
                 )}
               </div>
               {renderCalendar()}
+              {isGoogleEnabled && loggedIn && (
+                <GoogleDayAgenda
+                  date={lastClickedDate}
+                  onReauth={() => googleLogin && googleLogin()}
+                />
+              )}
             </div>
           </div>
         </div>

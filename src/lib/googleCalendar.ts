@@ -1,8 +1,10 @@
-// Google Calendar API ラッパー (primary カレンダーのみ対象)
+// Google Calendar API ラッパー
 
 import { dayBounds, CAL_TIME_ZONE } from './googleTime';
 
-const BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const API_ROOT = 'https://www.googleapis.com/calendar/v3';
+const eventsEndpoint = (calendarId: string) =>
+  `${API_ROOT}/calendars/${encodeURIComponent(calendarId)}/events`;
 
 export class GoogleAuthError extends Error {
   constructor(message = '認証が切れています') {
@@ -17,6 +19,18 @@ export interface CalendarEvent {
   start?: { date?: string; dateTime?: string; timeZone?: string };
   end?: { date?: string; dateTime?: string; timeZone?: string };
   htmlLink?: string;
+  calendarId?: string;    // どのカレンダーから取得したか (集計時の識別用)
+  calendarColor?: string; // カレンダー色 (UI 上のドット)
+}
+
+export interface CalendarListEntry {
+  id: string;
+  summary: string;
+  primary?: boolean;
+  accessRole: 'owner' | 'writer' | 'reader' | 'freeBusyReader';
+  backgroundColor?: string;
+  foregroundColor?: string;
+  selected?: boolean;
 }
 
 function getToken(): string {
@@ -31,7 +45,22 @@ async function checkAuth(res: Response): Promise<void> {
   }
 }
 
-export async function listEventsForDay(date: Date): Promise<CalendarEvent[]> {
+export async function listCalendars(): Promise<CalendarListEntry[]> {
+  const token = getToken();
+  const res = await fetch(`${API_ROOT}/users/me/calendarList?minAccessRole=reader`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  await checkAuth(res);
+  if (!res.ok) throw new Error(`Calendar API error (HTTP ${res.status})`);
+  const data = await res.json();
+  return (data.items ?? []) as CalendarListEntry[];
+}
+
+async function listEventsForCalendar(
+  calendarId: string,
+  date: Date,
+  color?: string
+): Promise<CalendarEvent[]> {
   const token = getToken();
   const { timeMin, timeMax } = dayBounds(date);
   const params = new URLSearchParams({
@@ -41,13 +70,35 @@ export async function listEventsForDay(date: Date): Promise<CalendarEvent[]> {
     orderBy: 'startTime',
     maxResults: '50',
   });
-  const res = await fetch(`${BASE}?${params.toString()}`, {
+  const res = await fetch(`${eventsEndpoint(calendarId)}?${params.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   await checkAuth(res);
   if (!res.ok) throw new Error(`Calendar API error (HTTP ${res.status})`);
   const data = await res.json();
-  return (data.items ?? []) as CalendarEvent[];
+  return ((data.items ?? []) as CalendarEvent[]).map(ev => ({
+    ...ev,
+    calendarId,
+    calendarColor: color,
+  }));
+}
+
+export async function listEventsForDay(
+  date: Date,
+  calendars: Array<{ id: string; color?: string }> = [{ id: 'primary' }]
+): Promise<CalendarEvent[]> {
+  if (calendars.length === 0) return [];
+  // 各カレンダーは並列取得。1 つでも GoogleAuthError なら全体を投げる
+  const results = await Promise.all(
+    calendars.map(cal => listEventsForCalendar(cal.id, date, cal.color))
+  );
+  const all = results.flat();
+  // 開始時刻昇順に並び替え (終日は先頭)
+  return all.sort((a, b) => {
+    const ak = a.start?.date ?? a.start?.dateTime ?? '';
+    const bk = b.start?.date ?? b.start?.dateTime ?? '';
+    return ak.localeCompare(bk);
+  });
 }
 
 export interface InsertEventInput {
@@ -57,7 +108,10 @@ export interface InsertEventInput {
   end: { date?: string; dateTime?: string; timeZone?: string };
 }
 
-export async function insertEvent(input: InsertEventInput): Promise<CalendarEvent> {
+export async function insertEvent(
+  input: InsertEventInput,
+  calendarId: string = 'primary'
+): Promise<CalendarEvent> {
   const token = getToken();
   const body = {
     summary: input.summary,
@@ -69,7 +123,7 @@ export async function insertEvent(input: InsertEventInput): Promise<CalendarEven
       ? { ...input.end, timeZone: input.end.timeZone ?? CAL_TIME_ZONE }
       : input.end,
   };
-  const res = await fetch(BASE, {
+  const res = await fetch(eventsEndpoint(calendarId), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

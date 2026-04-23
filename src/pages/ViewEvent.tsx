@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Check } from 'lucide-react';
+import { useGoogleLogin } from '@react-oauth/google';
 import { cn } from '../lib/utils';
+import ConfirmSlotButton from '../components/ConfirmSlotButton';
+
+const googleClientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '';
+const isGoogleEnabled = !!googleClientId;
 
 type AvailabilityStatus = 'yes' | 'maybe' | 'no';
 
@@ -9,6 +14,7 @@ interface Event {
   id: string;
   title: string;
   description: string;
+  host_id: string;
   host_name: string;
   slots: string[];
   responses: ResponseData[];
@@ -33,6 +39,17 @@ export default function ViewEvent() {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  // 再ログイン用 (Google 有効時のみ)。useGoogleLogin は GoogleOAuthProvider 配下で呼ばれる必要がある
+  const googleReauth = isGoogleEnabled
+    ? useGoogleLogin({
+        scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+        onSuccess: tokenResponse => {
+          localStorage.setItem('scheduler_google_token', tokenResponse.access_token);
+        },
+        onError: err => console.error('Google Login Failed:', err),
+      })
+    : null;
 
   useEffect(() => {
     fetchEvent();
@@ -130,6 +147,8 @@ export default function ViewEvent() {
     yesCounts[slot] = event.responses.filter(r => r.availabilities[slot] === 'yes').length;
   });
 
+  const isHost = localStorage.getItem('scheduler_user_id') === event.host_id;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -175,7 +194,15 @@ export default function ViewEvent() {
                 return (
                   <tr key={slot} className={cn("border-b border-slate-100", isBest && "bg-green-50/60")}>
                     <td className={cn("px-3 py-2.5 text-slate-700 font-medium sticky left-0", isBest ? "bg-green-50/60" : "bg-white")}>
-                      {slot}
+                      <div>{slot}</div>
+                      {isGoogleEnabled && isHost && (
+                        <ConfirmSlotButton
+                          slot={slot}
+                          eventTitle={event.title}
+                          description={event.description}
+                          onReauth={() => googleReauth && googleReauth()}
+                        />
+                      )}
                     </td>
                     {event.responses.map(r => (
                       <td key={r.id} className="px-3 py-2.5 text-center">

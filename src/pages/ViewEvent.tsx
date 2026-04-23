@@ -31,6 +31,8 @@ export default function ViewEvent() {
   const [name, setName] = useState('');
   const [availabilities, setAvailabilities] = useState<Record<string, AvailabilityStatus>>({});
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     fetchEvent();
@@ -82,6 +84,8 @@ export default function ViewEvent() {
     e.preventDefault();
     if (!name || !event) return;
 
+    setSubmitError('');
+    setSubmitting(true);
     try {
       const res = await fetch(`/api/events/${id}/responses`, {
         method: 'POST',
@@ -98,9 +102,14 @@ export default function ViewEvent() {
         setName('');
         setComment('');
         fetchEvent();
+        return;
       }
+      setSubmitError(`送信に失敗しました (HTTP ${res.status})。時間をおいて再度お試しください。`);
     } catch (e) {
       console.error(e);
+      setSubmitError('ネットワークエラーが発生しました。接続を確認して再度お試しください。');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -255,12 +264,18 @@ export default function ViewEvent() {
             />
           </div>
 
+          {submitError && (
+            <div role="alert" className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2">
+              {submitError}
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={!name}
+            disabled={submitting || !name}
             className="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors"
           >
-            出欠を入力する
+            {submitting ? '送信中…' : '出欠を入力する'}
           </button>
         </form>
       </div>

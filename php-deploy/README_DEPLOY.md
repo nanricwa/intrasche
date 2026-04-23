@@ -59,6 +59,22 @@ sche.ctw-hd.com/
 3. ローカルの `Scheduler/php-deploy/.htaccess` をアップロード
 4. ローカルの `Scheduler/php-deploy/api/` フォルダごとアップロード
 
+### ★必ずアップロードする `api/` 配下チェックリスト
+以下 **すべて** がサーバーの `api/` 直下に存在していないと `POST /api/events` などが 404 になり、CTAボタンが無反応に見えます。config.sample.php だけで events.php を忘れるケースが実績あり。
+
+- [ ] `api/db.php`（DB接続 共通ユーティリティ）
+- [ ] `api/events.php`（GET一覧 / POST作成）
+- [ ] `api/event.php`（GET単一）
+- [ ] `api/responses.php`（POST回答）
+- [ ] `api/config.sample.php`（参考用）
+- [ ] `api/config.php`（★本番DB接続情報。下記 手順5 で作成）
+
+アップロード後、以下コマンドでサーバーから応答が返るか即確認できます:
+```bash
+curl -i "https://sche.ctw-hd.com/api/events?host_id=ping"
+# 期待: 400 Missing/400 host_id or 200 [] （404が返る場合はファイル未配置）
+```
+
 ## 5. config.php をサーバー上で作成
 
 方法A: FTPクライアントで `api/config.sample.php` をダウンロード → 編集 → `config.php` として再アップロード
@@ -91,6 +107,8 @@ return [
 |---|---|---|
 | 500エラー | `api/config.php` 未作成 または PHPエラー | サーバーパネル「エラーログ」を確認 |
 | API 404 | `.htaccess` 未アップロード | `sche.ctw-hd.com/` 直下に `.htaccess` があるか |
+| API 404 (htaccess あり) | `api/*.php` が未アップロード | `curl https://sche.ctw-hd.com/api/events.php` で 404 なら未配置。手順3-4のチェックリスト参照 |
+| CTAボタン 無反応 | API 404 のまま fetch 失敗 | 上記の API 404 を先に解消 |
 | DB接続失敗 | `config.php` の情報違い | DB名・ユーザー名・パスワード再確認 |
 | SSL証明書エラー | 反映前 | 30分〜1時間待つ |
 | 白画面 | JSファイルパスずれ | ブラウザのNetworkタブで404確認、`assets/` が正しい位置にあるか |

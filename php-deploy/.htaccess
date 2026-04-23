@@ -9,15 +9,17 @@ RewriteEngine On
 </FilesMatch>
 
 # /api/events (GET一覧 or POST作成) → events.php
-RewriteRule ^api/events/?$ api/events.php [QSA,L]
+# [END] を使って再処理を止める（[L] だと書換え後に catch-all が再マッチして 404 になる）
+RewriteRule ^api/events/?$ api/events.php [QSA,END]
 
 # /api/events/{id}/responses (POST) → responses.php?event_id={id}
-RewriteRule ^api/events/([A-Za-z0-9_-]+)/responses/?$ api/responses.php?event_id=$1 [QSA,L]
+RewriteRule ^api/events/([A-Za-z0-9_-]+)/responses/?$ api/responses.php?event_id=$1 [QSA,END]
 
 # /api/events/{id} (GET単一) → event.php?id={id}
-RewriteRule ^api/events/([A-Za-z0-9_-]+)/?$ api/event.php?id=$1 [QSA,L]
+RewriteRule ^api/events/([A-Za-z0-9_-]+)/?$ api/event.php?id=$1 [QSA,END]
 
-# 上記以外のAPIパスは404
+# 上記以外のAPIパスは404（ただし存在する .php 実体は除外 = 書換え結果を守る保険）
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^api/ - [R=404,L]
 
 # 実在するファイル・ディレクトリはそのまま

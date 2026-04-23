@@ -29,6 +29,8 @@ export default function CreateEvent() {
   const [hostName, setHostName] = useState('');
   const [userId, setUserId] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     const savedName = localStorage.getItem('scheduler_user_name');
@@ -102,6 +104,8 @@ export default function CreateEvent() {
 
     const eventId = Math.random().toString(36).substring(2, 10);
 
+    setSubmitError('');
+    setSubmitting(true);
     try {
       const res = await fetch('/api/events', {
         method: 'POST',
@@ -118,9 +122,14 @@ export default function CreateEvent() {
 
       if (res.ok) {
         navigate(`/events/${eventId}`);
+        return;
       }
+      setSubmitError(`送信に失敗しました (HTTP ${res.status})。時間をおいて再度お試しください。`);
     } catch (e) {
       console.error('Failed to create event', e);
+      setSubmitError('ネットワークエラーが発生しました。接続を確認して再度お試しください。');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -322,12 +331,18 @@ export default function CreateEvent() {
           />
         </div>
 
+        {submitError && (
+          <div role="alert" className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2">
+            {submitError}
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={!title || !candidatesText.trim()}
+          disabled={submitting || !title || !candidatesText.trim()}
           className="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-sm font-medium py-3 px-4 rounded-lg transition-colors"
         >
-          出欠表をつくる
+          {submitting ? '送信中…' : '出欠表をつくる'}
         </button>
       </form>
     </div>

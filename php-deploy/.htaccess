@@ -1,0 +1,44 @@
+# 社内スケジューラー Xserver 用 .htaccess
+# フロント: React SPA / バック: PHP API
+
+RewriteEngine On
+
+# 設定ファイル直接アクセス禁止
+<FilesMatch "^(config\.php|config\.sample\.php)$">
+    Require all denied
+</FilesMatch>
+
+# /api/events (GET一覧 or POST作成) → events.php
+RewriteRule ^api/events/?$ api/events.php [QSA,L]
+
+# /api/events/{id}/responses (POST) → responses.php?event_id={id}
+RewriteRule ^api/events/([A-Za-z0-9_-]+)/responses/?$ api/responses.php?event_id=$1 [QSA,L]
+
+# /api/events/{id} (GET単一) → event.php?id={id}
+RewriteRule ^api/events/([A-Za-z0-9_-]+)/?$ api/event.php?id=$1 [QSA,L]
+
+# 上記以外のAPIパスは404
+RewriteRule ^api/ - [R=404,L]
+
+# 実在するファイル・ディレクトリはそのまま
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# それ以外はSPA用にindex.htmlへフォールバック
+RewriteRule ^ index.html [L]
+
+# Gzip圧縮
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
+</IfModule>
+
+# 静的アセットのキャッシュ
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>

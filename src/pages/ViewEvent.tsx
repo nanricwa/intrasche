@@ -4,6 +4,7 @@ import { Share2, Check } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { cn } from '../lib/utils';
 import ConfirmSlotButton from '../components/ConfirmSlotButton';
+import { saveGoogleToken } from '../lib/googleAuth';
 
 const googleClientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '';
 const isGoogleEnabled = !!googleClientId;
@@ -45,7 +46,7 @@ export default function ViewEvent() {
     ? useGoogleLogin({
         scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
         onSuccess: tokenResponse => {
-          localStorage.setItem('scheduler_google_token', tokenResponse.access_token);
+          saveGoogleToken(tokenResponse.access_token);
         },
         onError: err => console.error('Google Login Failed:', err),
       })

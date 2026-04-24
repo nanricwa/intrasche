@@ -1,5 +1,9 @@
 # Xserver デプロイ手順
 
+> **Google 連携 (OAuth + Calendar) を本番に反映する場合は、このファイルではなく
+> [DEPLOY_GOOGLE_OAUTH.md](../DEPLOY_GOOGLE_OAUTH.md) の手順を参照してください。**
+> Client ID 発行 → ビルド → アップロード → 動作確認までまとまっています。
+
 デプロイ先: **https://sche.ctw-hd.com**
 サーバーパス: `/ctw-hd.com/public_html/sche.ctw-hd.com/`
 FTPホスト: `sv14397.xserver.jp`

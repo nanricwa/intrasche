@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { listEventsForDay, GoogleAuthError, type CalendarEvent } from '../lib/googleCalendar';
 import { useCalendarList } from '../lib/useCalendarList';
+import { onAuthRefreshed } from '../lib/googleAuth';
 
 interface Props {
   date: Date | null;
@@ -80,6 +81,14 @@ export default function GoogleDayAgenda({ date, onReauth }: Props) {
       cancelled = true;
     };
   }, [cacheKey]);
+
+  // 再ログイン後に day state をリセットしてキャッシュを破棄 (auth 表示を抜ける)
+  useEffect(() => {
+    return onAuthRefreshed(() => {
+      cacheRef.current.clear();
+      setState({ kind: 'idle' });
+    });
+  }, []);
 
   const retry = () => {
     if (!cacheKey || !date) return;

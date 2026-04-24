@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listCalendars, GoogleAuthError, type CalendarListEntry } from './googleCalendar';
+import { onAuthRefreshed } from './googleAuth';
 
 export const READ_CALENDARS_KEY = 'scheduler_calendar_read_ids';
 export const WRITE_CALENDAR_KEY = 'scheduler_calendar_write_id';
@@ -73,6 +74,11 @@ export function useCalendarList(enabled: boolean): {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // 再ログイン成功時に自動で再取得 (各コンポーネント横串)
+  useEffect(() => {
+    return onAuthRefreshed(load);
   }, [load]);
 
   const setReadIds = useCallback((ids: string[]) => {
